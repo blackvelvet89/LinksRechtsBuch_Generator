@@ -39,6 +39,8 @@ namespace LinksRechtsBuch_Generator
 
         private void FormMain_Load(object sender, EventArgs e)
         {
+            GlobalFontSettings.FontResolver = new NewFontResolver();
+
             if (debug)
             {
                 this.Size = new System.Drawing.Size(1106, 910);
@@ -174,45 +176,12 @@ namespace LinksRechtsBuch_Generator
             SaveRoutes();
         }
 
-        private void SaveRoutes()
+
+
+        private void buttonCancelRoute_Click(object sender, EventArgs e)
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "Text Datei (*.txt)|*.txt|PDF Datei (*.pdf)|*.pdf";
-            saveFileDialog.Title = "Links-Rechts-Buch speichern.";
-
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".txt")
-                {
-                    File.WriteAllLines(saveFileDialog.FileName, directions);
-                }
-                else if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".pdf")
-                {
-                    CreatePdf(saveFileDialog.FileName);
-                }
-            }
+            cancellationTokenSource?.Cancel();
         }
-
-        private void CreatePdf(string fileName)
-        {
-            GlobalFontSettings.FontResolver = new NewFontResolver();
-
-            PdfDocument pdfDocument = new PdfDocument();
-
-            PdfPage titlepage = pdfDocument.AddPage();
-            titlepage.Width = XUnit.FromCentimeter()
-
-
-            XGraphics gfx = XGraphics.FromPdfPage(titlepage);
-
-            XFont titleFont = new XFont("Times New Roman", 14, XFontStyleEx.Regular);
-
-            gfx.DrawString(cityName, titleFont, XBrushes.Black, new XRect(10, 10, titlepage.Width, titlepage.Height), XStringFormats.Center);
-            
-            pdfDocument.Save(fileName);
-        }
-
-
         #endregion
 
         #region 3. Data Handling
@@ -534,10 +503,69 @@ namespace LinksRechtsBuch_Generator
 
         #endregion
 
-        private void buttonCancelRoute_Click(object sender, EventArgs e)
+        #region 4. File Creation
+        private void SaveRoutes()
         {
-            cancellationTokenSource?.Cancel();
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "Text Datei (*.txt)|*.txt|PDF Datei (*.pdf)|*.pdf";
+            saveFileDialog.Title = "Links-Rechts-Buch speichern.";
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".txt")
+                {
+                    File.WriteAllLines(saveFileDialog.FileName, directions);
+                }
+                else if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".pdf")
+                {
+                    CreatePdf(saveFileDialog.FileName);
+                }
+            }
         }
+
+        private void CreatePdf(string fileName)
+        {
+
+            PdfDocument pdfDocument = new PdfDocument();
+
+            CreateTitlepage(pdfDocument);
+
+
+            pdfDocument.Save(fileName);
+        }
+
+        private void CreateTitlepage(PdfDocument pdf)
+        {
+            PdfPage titlepage = pdf.AddPage();
+
+            //DIN A6
+            double pageWidth = XUnit.FromMillimeter(105);
+            double pageHeight = XUnit.FromMillimeter(148);
+            double pageMargins = XUnit.FromMillimeter(10);
+            double pageBindingMargin = XUnit.FromMillimeter(20);
+            
+            titlepage.Width = pageWidth;
+            titlepage.Height = pageHeight;
+
+
+            XGraphics gfx = XGraphics.FromPdfPage(titlepage);
+
+            XFont titleFont = new XFont("Times New Roman", 20, XFontStyleEx.Regular);
+            XFont subtitleFont = new XFont("Times New Roman", 10, XFontStyleEx.Regular);
+
+            XRect recTitle1 = new XRect(pageBindingMargin, pageMargins, pageWidth, 20);
+            XRect recTitle2 = new XRect(pageBindingMargin, recTitle1.Bottom + 5, pageWidth, 20);
+            gfx.DrawString("Strassenverzeichnis", titleFont, XBrushes.Black, recTitle1, XStringFormats.TopLeft);
+            gfx.DrawString(cityName, titleFont, XBrushes.Black, recTitle2, XStringFormats.TopLeft);
+
+            double yOffset = 10;
+
+            XRect recSubtitle = new XRect(pageBindingMargin, recTitle2.Bottom + yOffset, pageWidth, 10);
+            gfx.DrawString($"Startpunkt {textBoxOriginStreet.Text}", subtitleFont, XBrushes.Black, recSubtitle, XStringFormats.TopLeft);
+
+        }
+        #endregion
+
     }
 
     #region 6. Custom Classes
