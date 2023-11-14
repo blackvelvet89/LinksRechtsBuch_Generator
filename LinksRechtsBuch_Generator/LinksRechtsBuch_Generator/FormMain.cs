@@ -529,16 +529,17 @@ namespace LinksRechtsBuch_Generator
             PdfDocument pdfDocument = new PdfDocument();
 
             CreateTitlepage(pdfDocument);
-
+            CreateTestPage(pdfDocument);
 
             pdfDocument.Save(fileName);
         }
+
 
         private void CreateTitlepage(PdfDocument pdf)
         {
             PdfPage titlepage = pdf.AddPage();
 
-            //DIN A6
+            //DIN A6 Settings
             double pageWidth = XUnit.FromMillimeter(105);
             double pageHeight = XUnit.FromMillimeter(148);
             double pageMargins = XUnit.FromMillimeter(10);
@@ -562,6 +563,62 @@ namespace LinksRechtsBuch_Generator
 
             XRect recSubtitle = new XRect(pageBindingMargin, recTitle2.Bottom + yOffset, pageWidth, 10);
             gfx.DrawString($"Startpunkt {textBoxOriginStreet.Text}", subtitleFont, XBrushes.Black, recSubtitle, XStringFormats.TopLeft);
+
+        }
+        private void CreateTestPage(PdfDocument pdf)
+        {
+            /*
+                Using DIN A6 paper
+                Paper height is 148mm
+                Page margins are 10mm
+                148mm - 2 * 10mm = 128mm
+                Leaving space for page number => 115mm of usable space
+
+                Got to change the Binding Margin side for each page, since they will be printed on both sides!
+            */
+
+            PdfPage testpage = pdf.AddPage();
+
+            //DIN A6 Settings
+            double pageWidth = XUnit.FromMillimeter(105);
+            double pageHeight = XUnit.FromMillimeter(148);
+            double pageMargins = XUnit.FromMillimeter(10);
+            double pageBindingMargin = XUnit.FromMillimeter(20);
+
+            testpage.Width = pageWidth;
+            testpage.Height = pageHeight;
+
+            XGraphics gfx = XGraphics.FromPdfPage(testpage);
+            XFont streetFont = new XFont("Times New Roman", 10, XFontStyleEx.Bold);
+            XFont directionFont = new XFont("Times New Roman", 10, XFontStyleEx.Regular);
+            XFont pageNumberFont = new XFont("Times New Roman", 6, XFontStyleEx.Regular);
+
+            XRect streetRect = new XRect(pageBindingMargin,pageMargins, pageWidth, 15);
+            XRect directionRect = new XRect(pageBindingMargin,pageMargins, pageWidth, 10);
+            XRect pageNumberRect = new XRect(pageBindingMargin, XUnit.FromMillimeter(128), pageWidth-pageBindingMargin-pageMargins, XUnit.FromMillimeter(10));
+            double spacer = 10.00;
+
+            gfx.DrawString($"Testzeile", streetFont, XBrushes.Black, streetRect, XStringFormats.TopLeft);
+            directionRect.Y = streetRect.Bottom;
+            gfx.DrawString($"Testzeile", directionFont, XBrushes.Black, directionRect, XStringFormats.TopLeft);
+            gfx.DrawString($"1", pageNumberFont, XBrushes.Black, pageNumberRect, XStringFormats.BottomCenter);
+
+            //show margins in black rectangles
+            if (true)
+            {
+                XRect topMargin = new XRect(0, 0, pageWidth, pageMargins);
+                gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), topMargin);
+
+                XRect bottomMargin = new XRect(0, pageHeight-pageMargins, pageWidth, pageMargins);
+                gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), bottomMargin);
+
+                XRect rightMargin = new XRect(pageWidth - pageMargins, 0, pageMargins, pageHeight);
+                gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), rightMargin);
+
+                XRect bindingMargin = new XRect(0, 0, pageBindingMargin, pageHeight);
+                gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), bindingMargin);
+            }
+
 
         }
         #endregion
