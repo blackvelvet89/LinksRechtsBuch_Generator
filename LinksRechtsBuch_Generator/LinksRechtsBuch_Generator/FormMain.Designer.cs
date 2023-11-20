@@ -45,6 +45,8 @@
             progressBarRoutesInner = new ProgressBar();
             buttonSaveRoutes = new Button();
             groupBoxOrigin = new GroupBox();
+            comboBoxState = new ComboBox();
+            labelState = new Label();
             labelOriginStreet = new Label();
             textBoxOriginStreet = new TextBox();
             labelOriginCity = new Label();
@@ -172,7 +174,7 @@
             groupBoxRouting.Margin = new Padding(4, 3, 4, 3);
             groupBoxRouting.Name = "groupBoxRouting";
             groupBoxRouting.Padding = new Padding(4, 3, 4, 3);
-            groupBoxRouting.Size = new Size(1058, 157);
+            groupBoxRouting.Size = new Size(1058, 203);
             groupBoxRouting.TabIndex = 6;
             groupBoxRouting.TabStop = false;
             groupBoxRouting.Text = "3. Routenberechnung";
@@ -180,7 +182,7 @@
             // buttonCancelRoute
             // 
             buttonCancelRoute.Enabled = false;
-            buttonCancelRoute.Location = new Point(380, 67);
+            buttonCancelRoute.Location = new Point(382, 68);
             buttonCancelRoute.Margin = new Padding(4, 3, 4, 3);
             buttonCancelRoute.Name = "buttonCancelRoute";
             buttonCancelRoute.Size = new Size(166, 27);
@@ -199,7 +201,7 @@
             groupBoxProgress.Margin = new Padding(4, 3, 4, 3);
             groupBoxProgress.Name = "groupBoxProgress";
             groupBoxProgress.Padding = new Padding(4, 3, 4, 3);
-            groupBoxProgress.Size = new Size(497, 128);
+            groupBoxProgress.Size = new Size(497, 175);
             groupBoxProgress.TabIndex = 13;
             groupBoxProgress.TabStop = false;
             groupBoxProgress.Text = "Status: Wartet auf Start";
@@ -207,7 +209,7 @@
             // labelProgressInner
             // 
             labelProgressInner.AutoSize = true;
-            labelProgressInner.Location = new Point(7, 72);
+            labelProgressInner.Location = new Point(8, 73);
             labelProgressInner.Margin = new Padding(4, 0, 4, 0);
             labelProgressInner.Name = "labelProgressInner";
             labelProgressInner.Size = new Size(45, 15);
@@ -216,7 +218,7 @@
             // 
             // progressBarRoutesOuter
             // 
-            progressBarRoutesOuter.Location = new Point(10, 37);
+            progressBarRoutesOuter.Location = new Point(11, 38);
             progressBarRoutesOuter.Margin = new Padding(4, 3, 4, 3);
             progressBarRoutesOuter.Name = "progressBarRoutesOuter";
             progressBarRoutesOuter.Size = new Size(432, 27);
@@ -225,7 +227,7 @@
             // labelProgressOuter
             // 
             labelProgressOuter.AutoSize = true;
-            labelProgressOuter.Location = new Point(7, 18);
+            labelProgressOuter.Location = new Point(8, 19);
             labelProgressOuter.Margin = new Padding(4, 0, 4, 0);
             labelProgressOuter.Name = "labelProgressOuter";
             labelProgressOuter.Size = new Size(109, 15);
@@ -234,7 +236,7 @@
             // 
             // progressBarRoutesInner
             // 
-            progressBarRoutesInner.Location = new Point(10, 90);
+            progressBarRoutesInner.Location = new Point(11, 91);
             progressBarRoutesInner.Margin = new Padding(4, 3, 4, 3);
             progressBarRoutesInner.Name = "progressBarRoutesInner";
             progressBarRoutesInner.Size = new Size(432, 27);
@@ -243,7 +245,7 @@
             // buttonSaveRoutes
             // 
             buttonSaveRoutes.Enabled = false;
-            buttonSaveRoutes.Location = new Point(380, 123);
+            buttonSaveRoutes.Location = new Point(382, 164);
             buttonSaveRoutes.Margin = new Padding(4, 3, 4, 3);
             buttonSaveRoutes.Name = "buttonSaveRoutes";
             buttonSaveRoutes.Size = new Size(166, 27);
@@ -254,6 +256,8 @@
             // 
             // groupBoxOrigin
             // 
+            groupBoxOrigin.Controls.Add(comboBoxState);
+            groupBoxOrigin.Controls.Add(labelState);
             groupBoxOrigin.Controls.Add(labelOriginStreet);
             groupBoxOrigin.Controls.Add(textBoxOriginStreet);
             groupBoxOrigin.Controls.Add(labelOriginCity);
@@ -262,15 +266,35 @@
             groupBoxOrigin.Margin = new Padding(4, 3, 4, 3);
             groupBoxOrigin.Name = "groupBoxOrigin";
             groupBoxOrigin.Padding = new Padding(4, 3, 4, 3);
-            groupBoxOrigin.Size = new Size(364, 128);
+            groupBoxOrigin.Size = new Size(364, 169);
             groupBoxOrigin.TabIndex = 3;
             groupBoxOrigin.TabStop = false;
             groupBoxOrigin.Text = "Startpunkt";
             // 
+            // comboBoxState
+            // 
+            comboBoxState.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxState.FormattingEnabled = true;
+            comboBoxState.Items.AddRange(new object[] { "Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen" });
+            comboBoxState.Location = new Point(8, 38);
+            comboBoxState.Name = "comboBoxState";
+            comboBoxState.Size = new Size(333, 23);
+            comboBoxState.TabIndex = 7;
+            // 
+            // labelState
+            // 
+            labelState.AutoSize = true;
+            labelState.Location = new Point(8, 19);
+            labelState.Margin = new Padding(4, 0, 4, 0);
+            labelState.Name = "labelState";
+            labelState.Size = new Size(69, 15);
+            labelState.TabIndex = 6;
+            labelState.Text = "Bundesland";
+            // 
             // labelOriginStreet
             // 
             labelOriginStreet.AutoSize = true;
-            labelOriginStreet.Location = new Point(7, 63);
+            labelOriginStreet.Location = new Point(8, 109);
             labelOriginStreet.Margin = new Padding(4, 0, 4, 0);
             labelOriginStreet.Name = "labelOriginStreet";
             labelOriginStreet.Size = new Size(108, 15);
@@ -279,7 +303,7 @@
             // 
             // textBoxOriginStreet
             // 
-            textBoxOriginStreet.Location = new Point(7, 82);
+            textBoxOriginStreet.Location = new Point(8, 128);
             textBoxOriginStreet.Margin = new Padding(4, 3, 4, 3);
             textBoxOriginStreet.Name = "textBoxOriginStreet";
             textBoxOriginStreet.Size = new Size(333, 23);
@@ -288,7 +312,7 @@
             // labelOriginCity
             // 
             labelOriginCity.AutoSize = true;
-            labelOriginCity.Location = new Point(7, 18);
+            labelOriginCity.Location = new Point(8, 64);
             labelOriginCity.Margin = new Padding(4, 0, 4, 0);
             labelOriginCity.Name = "labelOriginCity";
             labelOriginCity.Size = new Size(34, 15);
@@ -297,7 +321,7 @@
             // 
             // textBoxOriginCity
             // 
-            textBoxOriginCity.Location = new Point(7, 37);
+            textBoxOriginCity.Location = new Point(8, 83);
             textBoxOriginCity.Margin = new Padding(4, 3, 4, 3);
             textBoxOriginCity.Name = "textBoxOriginCity";
             textBoxOriginCity.Size = new Size(333, 23);
@@ -305,7 +329,7 @@
             // 
             // buttonGetRoutes
             // 
-            buttonGetRoutes.Location = new Point(380, 34);
+            buttonGetRoutes.Location = new Point(382, 35);
             buttonGetRoutes.Margin = new Padding(4, 3, 4, 3);
             buttonGetRoutes.Name = "buttonGetRoutes";
             buttonGetRoutes.Size = new Size(166, 27);
@@ -317,7 +341,7 @@
             // groupBoxDebug
             // 
             groupBoxDebug.Controls.Add(textBoxDebug);
-            groupBoxDebug.Location = new Point(14, 717);
+            groupBoxDebug.Location = new Point(14, 762);
             groupBoxDebug.Margin = new Padding(4, 3, 4, 3);
             groupBoxDebug.Name = "groupBoxDebug";
             groupBoxDebug.Padding = new Padding(4, 3, 4, 3);
@@ -342,7 +366,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1090, 717);
+            ClientSize = new Size(1090, 921);
             Controls.Add(groupBoxDebug);
             Controls.Add(groupBoxRouting);
             Controls.Add(groupBoxInstructions);
@@ -393,6 +417,8 @@
         private Label labelProgressOuter;
         private Label labelProgressInner;
         private Button buttonCancelRoute;
+        private ComboBox comboBoxState;
+        private Label labelState;
     }
 }
 

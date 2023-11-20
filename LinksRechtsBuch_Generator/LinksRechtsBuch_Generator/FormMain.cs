@@ -23,12 +23,12 @@ namespace LinksRechtsBuch_Generator
         double originLat = 51.44341032311196;
         double originLon = 7.336857729777326;
 
-        List<string> directions = new List<string>();
+        List<string> directionsPlainText = new List<string>();
 
         List<string> streetNames;
         Dictionary<char, List<string>> cityStreets = new Dictionary<char, List<string>>();
-        List<List<string>> directionLists = new List<List<string>>();
-        
+        List<Tuple<string, List<string>>> directionSet = new List<Tuple<string, List<string>>>();
+
         #endregion
 
         #region 1. Init
@@ -43,10 +43,11 @@ namespace LinksRechtsBuch_Generator
 
             if (debug)
             {
-                this.Size = new System.Drawing.Size(1106, 910);
+                this.Size = new System.Drawing.Size(1106, 960);
                 groupBoxDebug.Enabled = true;
                 groupBoxDebug.Visible = true;
 
+                comboBoxState.SelectedItem = "Nordrhein-Westfalen";
                 textBoxOriginCity.Text = "Witten";
                 textBoxOriginStreet.Text = "Hauptstrasse 60";
 
@@ -383,7 +384,6 @@ namespace LinksRechtsBuch_Generator
             StringBuilder directionBuilder = new StringBuilder();
             List<string> directionList = new List<string>();
 
-            directionList.Add(targetStreet);
             directionBuilder.AppendLine(targetStreet);
             directionBuilder.AppendLine();
 
@@ -393,7 +393,7 @@ namespace LinksRechtsBuch_Generator
             // Iterate through steps
             foreach (Step step in osrmResponse.Routes[0].Legs[0].Steps)
             {
-                if (step.Maneuver.Type == "turn")
+                if (step.Maneuver.Type == "turn" || step.Maneuver.Type  == "end of road")
                 {
                     string direction = "";
                     if (step.Maneuver.Modifier.Contains("left"))
@@ -418,10 +418,28 @@ namespace LinksRechtsBuch_Generator
                     directionList.Add($"Weiter auf {streetName}");
                     directionBuilder.AppendLine($"Weiter auf {streetName}");
                 }
+                else if (step.Maneuver.Type == "exit roundabout")
+                {
+                    string streetName = step.Name;
+                    directionList.Add($"Kreisverkehr auf {streetName}");
+                    directionBuilder.AppendLine($"Kreisverkehr auf {streetName}");
+                }
+                else if (step.Maneuver.Type == "on ramp")
+                {
+                    string streetName = step.Destinations;
+                    directionList.Add($"Auf Autobahn {streetName}");
+                    directionBuilder.AppendLine($"Auf Autobahn {streetName}");
+                }
+                else if (step.Maneuver.Type == "off ramp")
+                {
+                    string streetName = step.Destinations;
+                    directionList.Add($"Abfahrt {streetName}");
+                    directionBuilder.AppendLine($"Abfahrt {streetName}");
+                }
             }
-            directionLists.Add(directionList);
+            directionSet.Add(new Tuple<string, List<string>>(targetStreet, directionList));
             directionBuilder.AppendLine("==============================");
-            directions.Add(directionBuilder.ToString());
+            directionsPlainText.Add(directionBuilder.ToString());
             if (debug)
             {
                 textBoxDebug.Text = directionBuilder.ToString();
@@ -442,7 +460,7 @@ namespace LinksRechtsBuch_Generator
             }
 
 
-            cityName = textBoxOriginCity.Text;
+            cityName = $"{comboBoxState.SelectedItem.ToString()}, {textBoxOriginCity.Text}";
             using (HttpClient client = new HttpClient())
             {
                 // Construct the URL with query parameters
@@ -514,7 +532,7 @@ namespace LinksRechtsBuch_Generator
             {
                 if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".txt")
                 {
-                    File.WriteAllLines(saveFileDialog.FileName, directions);
+                    File.WriteAllLines(saveFileDialog.FileName, directionsPlainText);
                 }
                 else if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".pdf")
                 {
@@ -528,11 +546,64 @@ namespace LinksRechtsBuch_Generator
 
             PdfDocument pdfDocument = new PdfDocument();
 
+            int currentPage = 1;
+
             CreateTitlepage(pdfDocument);
-            CreateTestPage(pdfDocument);
+            CreateEmptyPage(pdfDocument);
+
+            currentPage++;
+
+            double usedHeight = 0.00;
+            double neededHeight = 0.00;
+            bool firstOnPage = true;
+
+            List<Tuple<string, List<string>>> pageContents = new List<Tuple<string, List<string>>>();
+            foreach (Tuple<string, List<string>> currentDirections in directionSet)
+            {
+                if (firstOnPage)
+                {
+                    neededHeight = CalculateNeededHeight(currentDirections.Item2, A6Page.streetRectBindLeft, A6Page.directionRectBindLeft, 0);
+                }
+                else
+                {
+                    neededHeight = CalculateNeededHeight(currentDirections.Item2, A6Page.streetRectBindLeft, A6Page.directionRectBindLeft, A6Page.spacer);
+                }
+
+                //Check if there's enough space left on the page
+                if (usedHeight + neededHeight <= A6Page.pageHeightPrintable)
+                {
+                    //Collect
+                    pageContents.Add(currentDirections);
+                    usedHeight = usedHeight + neededHeight;
+                    firstOnPage = false;
+                }
+                else
+                {
+                    //Create the current page and put this street to the next page
+                    //CreateDirectionPage
+                    CreateDirectionPage(pdfDocument, currentPage, pageContents);
+                    pageContents.Clear();
+                    pageContents.Add(currentDirections);
+                    usedHeight = neededHeight;
+                    currentPage++;
+                }
+
+                //If it's the last entry, always create the current page
+                if (currentDirections == directionSet.Last())
+                {
+                    //Create the current page and put this street to the next page
+                    //CreateDirectionPage
+                    CreateDirectionPage(pdfDocument, currentPage, pageContents);
+                    pageContents.Clear();
+                    usedHeight = neededHeight;
+                }
+
+            }
+
 
             pdfDocument.Save(fileName);
         }
+
 
 
         private void CreateTitlepage(PdfDocument pdf)
@@ -544,7 +615,7 @@ namespace LinksRechtsBuch_Generator
             double pageHeight = XUnit.FromMillimeter(148);
             double pageMargins = XUnit.FromMillimeter(10);
             double pageBindingMargin = XUnit.FromMillimeter(20);
-            
+
             titlepage.Width = pageWidth;
             titlepage.Height = pageHeight;
 
@@ -565,6 +636,14 @@ namespace LinksRechtsBuch_Generator
             gfx.DrawString($"Startpunkt {textBoxOriginStreet.Text}", subtitleFont, XBrushes.Black, recSubtitle, XStringFormats.TopLeft);
 
         }
+        private void CreateEmptyPage(PdfDocument pdf)
+        {
+            PdfPage emptyPage = new PdfPage();
+            emptyPage.Height = A6Page.pageHeight;
+            emptyPage.Width = A6Page.pageWidth;
+            pdf.AddPage(emptyPage);
+        }
+
         private void CreateTestPage(PdfDocument pdf)
         {
             /*
@@ -585,6 +664,9 @@ namespace LinksRechtsBuch_Generator
             double pageMargins = XUnit.FromMillimeter(10);
             double pageBindingMargin = XUnit.FromMillimeter(20);
 
+            double pageWidthPrintable = pageWidth - pageBindingMargin - pageMargins;
+            double pageHeightPrintable = pageHeight - pageMargins - pageMargins;
+
             testpage.Width = pageWidth;
             testpage.Height = pageHeight;
 
@@ -593,10 +675,10 @@ namespace LinksRechtsBuch_Generator
             XFont directionFont = new XFont("Times New Roman", 10, XFontStyleEx.Regular);
             XFont pageNumberFont = new XFont("Times New Roman", 6, XFontStyleEx.Regular);
 
-            XRect streetRect = new XRect(pageBindingMargin,pageMargins, pageWidth, 15);
-            XRect directionRect = new XRect(pageBindingMargin,pageMargins, pageWidth, 10);
-            XRect pageNumberRect = new XRect(pageBindingMargin, XUnit.FromMillimeter(128), pageWidth-pageBindingMargin-pageMargins, XUnit.FromMillimeter(10));
-            double spacer = 10.00;
+            XRect streetRect = new XRect(pageBindingMargin, pageMargins, pageWidth, 15);
+            XRect directionRect = new XRect(pageBindingMargin, pageMargins, pageWidth, 10);
+            XRect pageNumberRect = new XRect(pageBindingMargin, XUnit.FromMillimeter(128), pageWidth - pageBindingMargin - pageMargins, XUnit.FromMillimeter(10));
+
 
             gfx.DrawString($"Testzeile", streetFont, XBrushes.Black, streetRect, XStringFormats.TopLeft);
             directionRect.Y = streetRect.Bottom;
@@ -609,7 +691,7 @@ namespace LinksRechtsBuch_Generator
                 XRect topMargin = new XRect(0, 0, pageWidth, pageMargins);
                 gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), topMargin);
 
-                XRect bottomMargin = new XRect(0, pageHeight-pageMargins, pageWidth, pageMargins);
+                XRect bottomMargin = new XRect(0, pageHeight - pageMargins, pageWidth, pageMargins);
                 gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), bottomMargin);
 
                 XRect rightMargin = new XRect(pageWidth - pageMargins, 0, pageMargins, pageHeight);
@@ -618,9 +700,42 @@ namespace LinksRechtsBuch_Generator
                 XRect bindingMargin = new XRect(0, 0, pageBindingMargin, pageHeight);
                 gfx.DrawRectangle(new XPen(XColor.FromKnownColor(XKnownColor.Black)), bindingMargin);
             }
-
-
         }
+
+        private double CalculateNeededHeight(List<string> directions, XRect streetRect, XRect directionRect, double spacer)
+        {
+            double neededHeight = spacer + streetRect.Height + (directions.Count * directionRect.Height);
+            return neededHeight;
+        }
+
+
+        private PdfPage CreateDirectionPage(PdfDocument pdf, int pageNumber, List<Tuple<string, List<string>>> pageContents)
+        {
+            PageSide bindingSide = pageNumber % 2 == 0 ? PageSide.Left : PageSide.Right;
+            PdfPage currentPage = pdf.AddPage();
+            currentPage.Height = A6Page.pageHeight;
+            currentPage.Width = A6Page.pageWidth;
+            XGraphics gfx = XGraphics.FromPdfPage(currentPage);
+            XRect streetRect = bindingSide == PageSide.Left ? A6Page.streetRectBindRight : A6Page.streetRectBindLeft;
+            XRect directionRect = bindingSide == PageSide.Left ? A6Page.directionRectBindRight : A6Page.directionRectBindLeft;
+
+
+            foreach (Tuple<string, List<string>> currentStreet in pageContents)
+            {
+                gfx.DrawString($"{currentStreet.Item1}", A6Page.streetFont, XBrushes.Black, streetRect, XStringFormats.TopLeft);
+                directionRect.Y = streetRect.Bottom;
+                foreach (string currentDirection in currentStreet.Item2)
+                {
+                    gfx.DrawString($"{currentDirection}", A6Page.directionFont, XBrushes.Black, directionRect, XStringFormats.TopLeft);
+                    directionRect.Y = directionRect.Bottom;
+                }
+                streetRect.Y = directionRect.Bottom + A6Page.spacer;
+            }
+            gfx.DrawString($"{pageNumber.ToString()}", A6Page.pageNumberFont, XBrushes.Black, A6Page.pageNumberRect, XStringFormats.BottomCenter);
+
+            return currentPage;
+        }
+
         #endregion
 
     }
@@ -646,6 +761,7 @@ namespace LinksRechtsBuch_Generator
     {
         public Maneuver Maneuver { get; set; }
         public string Name { get; set; }
+        public string Destinations {get;set; }
     }
 
     public class Maneuver
@@ -653,8 +769,33 @@ namespace LinksRechtsBuch_Generator
         public string Type { get; set; }
         public string Modifier { get; set; }
     }
+
+    public class A6Page
+    {
+        public static readonly double pageWidth = XUnit.FromMillimeter(105);
+        public static readonly double pageHeight = XUnit.FromMillimeter(148);
+        public static readonly double pageMargins = XUnit.FromMillimeter(10);
+        public static readonly double pageBindingMargin = XUnit.FromMillimeter(20);
+
+        public static readonly double pageWidthPrintable = pageWidth - pageBindingMargin - pageMargins;
+        public static readonly double pageHeightPrintable = pageHeight - pageMargins - pageMargins - XUnit.FromMillimeter(10);
+
+        public static readonly XFont streetFont = new XFont("Times New Roman", 10, XFontStyleEx.Bold);
+        public static readonly XFont directionFont = new XFont("Times New Roman", 10, XFontStyleEx.Regular);
+        public static readonly XFont pageNumberFont = new XFont("Times New Roman", 6, XFontStyleEx.Regular);
+
+        public static readonly XRect streetRectBindLeft = new XRect(pageBindingMargin, pageMargins, pageWidth - pageMargins, 15);
+        public static readonly XRect directionRectBindLeft = new XRect(pageBindingMargin, pageMargins, pageWidth - pageMargins, 10);
+        public static readonly XRect streetRectBindRight = new XRect(pageMargins, pageMargins, pageWidth - pageBindingMargin, 15);
+        public static readonly XRect directionRectBindRight = new XRect(pageMargins, pageMargins, pageWidth - pageBindingMargin, 10);
+        public static readonly XRect pageNumberRect = new XRect(pageBindingMargin, XUnit.FromMillimeter(128), pageWidth - pageBindingMargin - pageMargins, XUnit.FromMillimeter(10));
+        public static readonly double spacer = 10.00;
+    }
+
+    public enum PageSide { Left, Right }
 }
 
+#region Font handling
 
 public class NewFontResolver : IFontResolver
 {
@@ -927,5 +1068,5 @@ public class NewFontResolver : IFontResolver
         return candidates.ToArray();
     }
 }
-
+#endregion
 #endregion
