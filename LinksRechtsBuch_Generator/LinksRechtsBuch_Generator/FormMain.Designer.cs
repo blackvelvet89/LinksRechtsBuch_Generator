@@ -37,13 +37,16 @@
             groupBoxInstructions = new GroupBox();
             textBoxInstructions = new TextBox();
             groupBoxRouting = new GroupBox();
-            buttonCancelRoute = new Button();
+            groupBoxSave = new GroupBox();
+            buttonSavePdfBook = new Button();
+            buttonSavePdf = new Button();
+            buttonSaveText = new Button();
             groupBoxProgress = new GroupBox();
             labelProgressInner = new Label();
+            buttonCancelRoute = new Button();
             progressBarRoutesOuter = new ProgressBar();
             labelProgressOuter = new Label();
             progressBarRoutesInner = new ProgressBar();
-            buttonSaveRoutes = new Button();
             groupBoxOrigin = new GroupBox();
             comboBoxState = new ComboBox();
             labelState = new Label();
@@ -58,6 +61,7 @@
             groupBoxCheck.SuspendLayout();
             groupBoxInstructions.SuspendLayout();
             groupBoxRouting.SuspendLayout();
+            groupBoxSave.SuspendLayout();
             groupBoxProgress.SuspendLayout();
             groupBoxOrigin.SuspendLayout();
             groupBoxDebug.SuspendLayout();
@@ -164,9 +168,8 @@
             // 
             // groupBoxRouting
             // 
-            groupBoxRouting.Controls.Add(buttonCancelRoute);
+            groupBoxRouting.Controls.Add(groupBoxSave);
             groupBoxRouting.Controls.Add(groupBoxProgress);
-            groupBoxRouting.Controls.Add(buttonSaveRoutes);
             groupBoxRouting.Controls.Add(groupBoxOrigin);
             groupBoxRouting.Controls.Add(buttonGetRoutes);
             groupBoxRouting.Enabled = false;
@@ -179,21 +182,52 @@
             groupBoxRouting.TabStop = false;
             groupBoxRouting.Text = "3. Routenberechnung";
             // 
-            // buttonCancelRoute
+            // groupBoxSave
             // 
-            buttonCancelRoute.Enabled = false;
-            buttonCancelRoute.Location = new Point(382, 68);
-            buttonCancelRoute.Margin = new Padding(4, 3, 4, 3);
-            buttonCancelRoute.Name = "buttonCancelRoute";
-            buttonCancelRoute.Size = new Size(166, 27);
-            buttonCancelRoute.TabIndex = 14;
-            buttonCancelRoute.Text = "Berechnung abbrechen";
-            buttonCancelRoute.UseVisualStyleBackColor = true;
-            buttonCancelRoute.Click += buttonCancelRoute_Click;
+            groupBoxSave.Controls.Add(buttonSavePdfBook);
+            groupBoxSave.Controls.Add(buttonSavePdf);
+            groupBoxSave.Controls.Add(buttonSaveText);
+            groupBoxSave.Location = new Point(381, 68);
+            groupBoxSave.Name = "groupBoxSave";
+            groupBoxSave.Size = new Size(166, 123);
+            groupBoxSave.TabIndex = 15;
+            groupBoxSave.TabStop = false;
+            groupBoxSave.Text = "Speichern";
+            // 
+            // buttonSavePdfBook
+            // 
+            buttonSavePdfBook.Location = new Point(6, 80);
+            buttonSavePdfBook.Name = "buttonSavePdfBook";
+            buttonSavePdfBook.Size = new Size(154, 23);
+            buttonSavePdfBook.TabIndex = 2;
+            buttonSavePdfBook.Text = "PDF (Buch)";
+            buttonSavePdfBook.UseVisualStyleBackColor = true;
+            buttonSavePdfBook.Click += buttonSavePdfBook_Click;
+            // 
+            // buttonSavePdf
+            // 
+            buttonSavePdf.Location = new Point(6, 51);
+            buttonSavePdf.Name = "buttonSavePdf";
+            buttonSavePdf.Size = new Size(154, 23);
+            buttonSavePdf.TabIndex = 1;
+            buttonSavePdf.Text = "PDF";
+            buttonSavePdf.UseVisualStyleBackColor = true;
+            buttonSavePdf.Click += buttonSavePdf_Click;
+            // 
+            // buttonSaveText
+            // 
+            buttonSaveText.Location = new Point(6, 22);
+            buttonSaveText.Name = "buttonSaveText";
+            buttonSaveText.Size = new Size(154, 23);
+            buttonSaveText.TabIndex = 0;
+            buttonSaveText.Text = "Textdatei";
+            buttonSaveText.UseVisualStyleBackColor = true;
+            buttonSaveText.Click += buttonSaveText_Click;
             // 
             // groupBoxProgress
             // 
             groupBoxProgress.Controls.Add(labelProgressInner);
+            groupBoxProgress.Controls.Add(buttonCancelRoute);
             groupBoxProgress.Controls.Add(progressBarRoutesOuter);
             groupBoxProgress.Controls.Add(labelProgressOuter);
             groupBoxProgress.Controls.Add(progressBarRoutesInner);
@@ -201,7 +235,7 @@
             groupBoxProgress.Margin = new Padding(4, 3, 4, 3);
             groupBoxProgress.Name = "groupBoxProgress";
             groupBoxProgress.Padding = new Padding(4, 3, 4, 3);
-            groupBoxProgress.Size = new Size(497, 175);
+            groupBoxProgress.Size = new Size(497, 169);
             groupBoxProgress.TabIndex = 13;
             groupBoxProgress.TabStop = false;
             groupBoxProgress.Text = "Status: Wartet auf Start";
@@ -215,6 +249,18 @@
             labelProgressInner.Size = new Size(45, 15);
             labelProgressInner.TabIndex = 13;
             labelProgressInner.Text = "0 von 0";
+            // 
+            // buttonCancelRoute
+            // 
+            buttonCancelRoute.Enabled = false;
+            buttonCancelRoute.Location = new Point(11, 136);
+            buttonCancelRoute.Margin = new Padding(4, 3, 4, 3);
+            buttonCancelRoute.Name = "buttonCancelRoute";
+            buttonCancelRoute.Size = new Size(166, 27);
+            buttonCancelRoute.TabIndex = 14;
+            buttonCancelRoute.Text = "Berechnung abbrechen";
+            buttonCancelRoute.UseVisualStyleBackColor = true;
+            buttonCancelRoute.Click += buttonCancelRoute_Click;
             // 
             // progressBarRoutesOuter
             // 
@@ -241,18 +287,6 @@
             progressBarRoutesInner.Name = "progressBarRoutesInner";
             progressBarRoutesInner.Size = new Size(432, 27);
             progressBarRoutesInner.TabIndex = 11;
-            // 
-            // buttonSaveRoutes
-            // 
-            buttonSaveRoutes.Enabled = false;
-            buttonSaveRoutes.Location = new Point(382, 164);
-            buttonSaveRoutes.Margin = new Padding(4, 3, 4, 3);
-            buttonSaveRoutes.Name = "buttonSaveRoutes";
-            buttonSaveRoutes.Size = new Size(166, 27);
-            buttonSaveRoutes.TabIndex = 10;
-            buttonSaveRoutes.Text = "Routen speichern";
-            buttonSaveRoutes.UseVisualStyleBackColor = true;
-            buttonSaveRoutes.Click += buttonSaveRoutes_Click;
             // 
             // groupBoxOrigin
             // 
@@ -382,6 +416,7 @@
             groupBoxInstructions.ResumeLayout(false);
             groupBoxInstructions.PerformLayout();
             groupBoxRouting.ResumeLayout(false);
+            groupBoxSave.ResumeLayout(false);
             groupBoxProgress.ResumeLayout(false);
             groupBoxProgress.PerformLayout();
             groupBoxOrigin.ResumeLayout(false);
@@ -411,7 +446,6 @@
         private Label labelOriginStreet;
         private TextBox textBoxOriginStreet;
         private ProgressBar progressBarRoutesOuter;
-        private Button buttonSaveRoutes;
         private ProgressBar progressBarRoutesInner;
         private GroupBox groupBoxProgress;
         private Label labelProgressOuter;
@@ -419,6 +453,10 @@
         private Button buttonCancelRoute;
         private ComboBox comboBoxState;
         private Label labelState;
+        private GroupBox groupBoxSave;
+        private Button buttonSaveText;
+        private Button buttonSavePdfBook;
+        private Button buttonSavePdf;
     }
 }
 

@@ -39,7 +39,7 @@ namespace LinksRechtsBuch_Generator
 
         private void FormMain_Load(object sender, EventArgs e)
         {
-            GlobalFontSettings.FontResolver = new NewFontResolver();
+            GlobalFontSettings.FontResolver = new FontHandling.NewFontResolver();
 
             if (debug)
             {
@@ -172,11 +172,6 @@ namespace LinksRechtsBuch_Generator
                 buttonCancelRoute.Enabled = false;
             }
         }
-        private void buttonSaveRoutes_Click(object sender, EventArgs e)
-        {
-            SaveRoutes();
-        }
-
 
 
         private void buttonCancelRoute_Click(object sender, EventArgs e)
@@ -277,7 +272,11 @@ namespace LinksRechtsBuch_Generator
 
                         string? routeJson = await GetRouteForStreetAsync(routeUrl);
 
-                        Console.WriteLine(routeJson);
+                        if (routeJson == null)
+                        {
+                            MessageBox.Show("Verbindung zu Routing Service fehlgeschlagen.", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
                         ExtractRouteInformation(street, routeJson);
                     }
                     progressBarRoutesInner.Value++;
@@ -393,7 +392,7 @@ namespace LinksRechtsBuch_Generator
             // Iterate through steps
             foreach (Step step in osrmResponse.Routes[0].Legs[0].Steps)
             {
-                if (step.Maneuver.Type == "turn" || step.Maneuver.Type  == "end of road")
+                if (step.Maneuver.Type == "turn" || step.Maneuver.Type == "end of road" || step.Maneuver.Type == "continue")
                 {
                     string direction = "";
                     if (step.Maneuver.Modifier.Contains("left"))
@@ -522,26 +521,91 @@ namespace LinksRechtsBuch_Generator
         #endregion
 
         #region 4. File Creation
-        private void SaveRoutes()
+        private void SaveRoutes(FileType fileType)
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "Text Datei (*.txt)|*.txt|PDF Datei (*.pdf)|*.pdf";
             saveFileDialog.Title = "Links-Rechts-Buch speichern.";
 
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            switch (fileType)
             {
-                if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".txt")
-                {
-                    File.WriteAllLines(saveFileDialog.FileName, directionsPlainText);
-                }
-                else if (Path.GetExtension(saveFileDialog.FileName).ToLower() == ".pdf")
-                {
-                    CreatePdf(saveFileDialog.FileName);
-                }
+
+                case FileType.txt:
+
+                    saveFileDialog.Filter = "Text Datei (*.txt)|*.txt";
+
+                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        File.WriteAllLines(saveFileDialog.FileName, directionsPlainText);
+                    }
+                    break;
+                case FileType.pdf:
+                    saveFileDialog.Filter = "PDF Datei(*.pdf) | *.pdf";
+                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        CreatePdf().Save(saveFileDialog.FileName);
+                    }
+                    break;
+                case FileType.pdfBook:
+                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        saveFileDialog.Filter = "PDF Datei(*.pdf) | *.pdf";
+                        CreatePdfBook().Save(saveFileDialog.FileName);
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
-        private void CreatePdf(string fileName)
+        private PdfDocument CreatePdfBook()
+        {
+            PdfDocument pdfDocument = CreatePdf();
+            PdfDocument sortedDocument = new PdfDocument();
+
+            //Sort it so it can be printed correctly
+            //Intended for printing two DIN A6 pages on a DIN A5 sheet of paper
+            //Both sides will be printed on
+
+            //The book will be bound by putting all the pages on a stack
+            //then they'll be stapled in the middle and folded.
+            //Page[0] is the title page
+            //Page[1] is empty
+            //Directions start on page [2]
+
+            //First page will be the outer back side of the booklet
+            CreateEmptyPage(sortedDocument);
+
+            //Second page will be the outer front side of the booklet
+            CreateTitlepage(sortedDocument);
+
+            //Third page will be the first page inside the booklet
+            CreateEmptyPage(sortedDocument);
+
+            //Fourth page will be the last page inside the booklet
+            CreateEmptyPage(sortedDocument);
+
+            //All other pages will have to be iterated through
+            //The sorting schema is
+            //  front left: x-1
+            //  front right: n
+            //  back left: n+1
+            //  back right: x-2
+            //until all pages are used. Due to this the number of pages will have to be divisible by 4
+            
+            int remainder = (pdfDocument.PageCount - 2) % 4;
+            int addToMakeDivisibleByFour = remainder == 0 ? 0 : 4 - remainder;
+
+            for (int i = 0; i <= addToMakeDivisibleByFour; i++)
+            {
+                CreateEmptyPage(pdfDocument);
+            }
+
+
+
+            return pdfDocument;
+        }
+
+        private PdfDocument CreatePdf()
         {
 
             PdfDocument pdfDocument = new PdfDocument();
@@ -599,9 +663,7 @@ namespace LinksRechtsBuch_Generator
                 }
 
             }
-
-
-            pdfDocument.Save(fileName);
+            return pdfDocument;
         }
 
 
@@ -628,7 +690,7 @@ namespace LinksRechtsBuch_Generator
             XRect recTitle1 = new XRect(pageBindingMargin, pageMargins, pageWidth, 20);
             XRect recTitle2 = new XRect(pageBindingMargin, recTitle1.Bottom + 5, pageWidth, 20);
             gfx.DrawString("Strassenverzeichnis", titleFont, XBrushes.Black, recTitle1, XStringFormats.TopLeft);
-            gfx.DrawString(cityName, titleFont, XBrushes.Black, recTitle2, XStringFormats.TopLeft);
+            gfx.DrawString($"{textBoxOriginCity.Text}", titleFont, XBrushes.Black, recTitle2, XStringFormats.TopLeft);
 
             double yOffset = 10;
 
@@ -708,7 +770,6 @@ namespace LinksRechtsBuch_Generator
             return neededHeight;
         }
 
-
         private PdfPage CreateDirectionPage(PdfDocument pdf, int pageNumber, List<Tuple<string, List<string>>> pageContents)
         {
             PageSide bindingSide = pageNumber % 2 == 0 ? PageSide.Left : PageSide.Right;
@@ -718,7 +779,7 @@ namespace LinksRechtsBuch_Generator
             XGraphics gfx = XGraphics.FromPdfPage(currentPage);
             XRect streetRect = bindingSide == PageSide.Left ? A6Page.streetRectBindRight : A6Page.streetRectBindLeft;
             XRect directionRect = bindingSide == PageSide.Left ? A6Page.directionRectBindRight : A6Page.directionRectBindLeft;
-
+            XRect pageNumberRect = bindingSide == PageSide.Left ? A6Page.pageNumberRectBindLeft : A6Page.pageNumberRectBindRight;
 
             foreach (Tuple<string, List<string>> currentStreet in pageContents)
             {
@@ -731,13 +792,40 @@ namespace LinksRechtsBuch_Generator
                 }
                 streetRect.Y = directionRect.Bottom + A6Page.spacer;
             }
-            gfx.DrawString($"{pageNumber.ToString()}", A6Page.pageNumberFont, XBrushes.Black, A6Page.pageNumberRect, XStringFormats.BottomCenter);
+            gfx.DrawString($"{pageNumber.ToString()}", A6Page.pageNumberFont, XBrushes.Black, pageNumberRect, XStringFormats.BottomCenter);
 
             return currentPage;
         }
 
+        private void SortPDF(PdfDocument pdf)
+        {
+            int pageCount = pdf.Pages.Count;
+
+            //Sort the pages so they can be printed on A5 sheets, double sided
+
+            //First we'll have to find out how many pages we've got.
+            if (pageCount)
+            {
+
+            }
+        }
+
         #endregion
 
+        private void buttonSaveText_Click(object sender, EventArgs e)
+        {
+            SaveRoutes(FileType.txt);
+        }
+
+        private void buttonSavePdf_Click(object sender, EventArgs e)
+        {
+            SaveRoutes(FileType.pdf);
+        }
+
+        private void buttonSavePdfBook_Click(object sender, EventArgs e)
+        {
+            SaveRoutes(FileType.pdfBook);
+        }
     }
 
     #region 6. Custom Classes
@@ -761,7 +849,7 @@ namespace LinksRechtsBuch_Generator
     {
         public Maneuver Maneuver { get; set; }
         public string Name { get; set; }
-        public string Destinations {get;set; }
+        public string Destinations { get; set; }
     }
 
     public class Maneuver
@@ -788,285 +876,14 @@ namespace LinksRechtsBuch_Generator
         public static readonly XRect directionRectBindLeft = new XRect(pageBindingMargin, pageMargins, pageWidth - pageMargins, 10);
         public static readonly XRect streetRectBindRight = new XRect(pageMargins, pageMargins, pageWidth - pageBindingMargin, 15);
         public static readonly XRect directionRectBindRight = new XRect(pageMargins, pageMargins, pageWidth - pageBindingMargin, 10);
-        public static readonly XRect pageNumberRect = new XRect(pageBindingMargin, XUnit.FromMillimeter(128), pageWidth - pageBindingMargin - pageMargins, XUnit.FromMillimeter(10));
+        public static readonly XRect pageNumberRectBindLeft = new XRect(pageMargins, XUnit.FromMillimeter(128), pageWidth - pageBindingMargin - pageMargins, XUnit.FromMillimeter(10));
+        public static readonly XRect pageNumberRectBindRight = new XRect(pageBindingMargin, XUnit.FromMillimeter(128), pageWidth - pageBindingMargin - pageMargins, XUnit.FromMillimeter(10));
         public static readonly double spacer = 10.00;
     }
 
     public enum PageSide { Left, Right }
+
+    public enum FileType { txt, pdf, pdfBook }
 }
 
-#region Font handling
-
-public class NewFontResolver : IFontResolver
-{
-    /// <summary>
-    /// NewFontResolver singleton for use in unit tests.
-    /// </summary>
-    public static NewFontResolver Get()
-    {
-        try
-        {
-            Monitor.Enter(typeof(NewFontResolver));
-
-            if (_singleton != null)
-                return _singleton;
-            return _singleton = new NewFontResolver();
-        }
-        finally
-        {
-            Monitor.Exit(typeof(NewFontResolver));
-        }
-    }
-    private static NewFontResolver? _singleton;
-
-#if DEBUG
-    public override String ToString()
-    {
-        var result = "Base: " + (base.ToString() ?? "<null>");
-        if (ReferenceEquals(this, _singleton))
-            result = "<Singleton>. " + result;
-
-        return result;
-    }
-#endif
-
-    public record Family(
-        string FamilyName,
-        string FaceName,
-        string LinuxFaceName = "",
-        params string[] LinuxSubstituteFamilyNames)
-    { }
-
-    public static readonly List<Family> Families;
-
-    static NewFontResolver()
-    {
-        Families = new List<Family>
-            {
-                new("Arial", "arial", "Arial", "FreeSans"),
-                new("Arial Black", "ariblk", "Arial-Black"),
-                new("Arial Bold", "arialbd", "Arial-Bold", "FreeSansBold"),
-                new("Arial Italic", "ariali", "Arial-Italic", "FreeSansOblique"),
-                new("Arial Bold Italic", "arialbi", "Arial-BoldItalic", "FreeSansBoldOblique"),
-
-                new("Courier New", "cour", "Courier-Bold", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "FreeMono"),
-                new("Courier New Bold", "courbd", "CourierNew-Bold", "DejaVu Sans Mono Bold", "Bitstream Vera Sans Mono Bold", "FreeMonoBold"),
-                new("Courier New Italic", "couri", "CourierNew-Italic", "DejaVu Sans Mono Oblique", "Bitstream Vera Sans Mono Italic", "FreeMonoOblique"),
-                new("Courier New Bold Italic", "courbi", "CourierNew-BoldItalic", "DejaVu Sans Mono Bold Oblique", "Bitstream Vera Sans Mono Bold Italic", "FreeMonoBoldOblique"),
-
-                new("Verdana", "verdana", "Verdana", "DejaVu Sans", "Bitstream Vera Sans"),
-                new("Verdana Bold", "verdanab", "Verdana-Bold", "DejaVu Sans Bold", "Bitstream Vera Sans Bold"),
-                new("Verdana Italic", "verdanai", "Verdana-Italic", "DejaVu Sans Oblique", "Bitstream Vera Sans Italic"),
-                new("Verdana Bold Italic", "verdanaz", "Verdana-BoldItalic", "DejaVu Sans Bold Oblique", "Bitstream Vera Sans Bold Italic"),
-
-                new("Times New Roman", "times", "TimesNewRoman", "FreeSerif"),
-                new("Times New Roman Bold", "timesbd", "TimesNewRoman-Bold", "FreeSerifBold"),
-                new("Times New Roman Italic", "timesi", "TimesNewRoman-Italic", "FreeSerifItalic"),
-                new("Times New Roman Bold Italic", "timesbi", "TimesNewRoman-BoldItalic", "FreeSerifBoldItalic"),
-
-                new("Lucida Console", "lucon", "LucidaConsole", "DejaVu Sans Mono"),
-
-                new("Symbol", "symbol", "", "Noto Sans Symbols Regular"), // Noto Symbols may not replace exactly
-
-                new("Wingdings", "wingding"), // No Linux substitute
-
-                // Linux Substitute Fonts
-                // TODO Nimbus and Liberation are only readily available as OTF.
-
-                // Ubuntu packages: fonts-dejavu fonts-dejavu-core fonts-dejavu-extra
-                new("DejaVu Sans", "DejaVuSans"),
-                new("DejaVu Sans Bold", "DejaVuSans-Bold"),
-                new("DejaVu Sans Oblique", "DejaVuSans-Oblique"),
-                new("DejaVu Sans Bold Oblique", "DejaVuSans-BoldOblique"),
-                new("DejaVu Sans Mono", "DejaVuSansMono"),
-                new("DejaVu Sans Mono Bold", "DejaVuSansMono-Bold"),
-                new("DejaVu Sans Mono Oblique", "DejaVuSansMono-Oblique"),
-                new("DejaVu Sans Mono Bold Oblique", "DejaVuSansMono-BoldOblique"),
-
-                // Ubuntu packages: fonts-freefont-ttf
-                new("FreeSans", "FreeSans"),
-                new("FreeSansBold", "FreeSansBold"),
-                new("FreeSansOblique", "FreeSansOblique"),
-                new("FreeSansBoldOblique", "FreeSansBoldOblique"),
-                new("FreeMono", "FreeMono"),
-                new("FreeMonoBold", "FreeMonoBold"),
-                new("FreeMonoOblique", "FreeMonoOblique"),
-                new("FreeMonoBoldOblique", "FreeMonoBoldOblique"),
-                new("FreeSerif", "FreeSerif"),
-                new("FreeSerifBold", "FreeSerifBold"),
-                new("FreeSerifItalic", "FreeSerifItalic"),
-                new("FreeSerifBoldItalic", "FreeSerifBoldItalic"),
-
-                // Ubuntu packages: ttf-bitstream-vera
-                new("Bitstream Vera Sans", "Vera"),
-                new("Bitstream Vera Sans Bold", "VeraBd"),
-                new("Bitstream Vera Sans Italic", "VeraIt"),
-                new("Bitstream Vera Sans Bold Italic", "VeraBI"),
-                new("Bitstream Vera Sans Mono", "VeraMono"),
-                new("Bitstream Vera Sans Mono Bold", "VeraMoBd"),
-                new("Bitstream Vera Sans Mono Italic", "VeraMoIt"),
-                new("Bitstream Vera Sans Mono Bold Italic", "VeraMoBI"),
-
-                // Ubuntu packages: fonts-noto-core
-                new("Noto Sans Symbols Regular", "NotoSansSymbols-Regular"),
-                new("Noto Sans Symbols Bold", "NotoSansSymbols-Bold"),
-            };
-    }
-
-    public FontResolverInfo? ResolveTypeface(string familyName, bool isBold, bool isItalic)
-    {
-        var families = Families.Where(f => f.FamilyName.StartsWith(familyName));
-        var baseFamily = Families.FirstOrDefault();
-
-        if (isBold)
-            families = families.Where(f => f.FamilyName.ToLowerInvariant().Contains("bold") || f.FamilyName.ToLowerInvariant().Contains("heavy"));
-
-        if (isItalic)
-            families = families.Where(f => f.FamilyName.ToLowerInvariant().Contains("italic") || f.FamilyName.ToLowerInvariant().Contains("oblique"));
-
-        var family = families.FirstOrDefault();
-        if (family is not null)
-            return new FontResolverInfo(family.FaceName);
-
-        if (baseFamily is not null)
-            return new FontResolverInfo(baseFamily.FaceName, isBold, isItalic);
-
-        return null;
-    }
-
-    public byte[]? GetFont(string faceName)
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return GetFontWindows(faceName);
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            return GetFontLinux(faceName);
-
-        return null;
-    }
-
-    byte[]? GetFontWindows(string faceName)
-    {
-        var fontLocations = new List<string>
-            {
-                @"C:\Windows\Fonts",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft\\Windows\\Fonts")
-            };
-
-        foreach (var fontLocation in fontLocations)
-        {
-            var filepath = Path.Combine(fontLocation, faceName + ".ttf");
-            if (File.Exists(filepath))
-                return File.ReadAllBytes(filepath);
-        }
-
-        return null;
-    }
-
-    byte[]? GetFontLinux(string faceName)
-    {
-        // TODO Query fontconfig.
-        // Fontconfig is the de facto standard for indexing and managing fonts on linux.
-        // Example command that should return a full file path to FreeSansBoldOblique.ttf:
-        //     fc-match -f '%{file}\n' 'FreeSans:Bold:Oblique:fontformat=TrueType' : file
-        //
-        // Caveat: fc-match *always* returns a "next best" match or default font, even if it's bad.
-        // Caveat: some preprocessing/refactoring needed to produce a pattern fc-match can understand.
-        // Caveat: fontconfig needs additional configuration to know about WSL having Windows Fonts available at /mnt/c/Windows/Fonts.
-
-        var fontLocations = new List<string>
-            {
-                "/mnt/c/Windows/Fonts", // WSL first or substitutes will be found.
-                "/usr/share/fonts",
-                "/usr/share/X11/fonts",
-                "/usr/X11R6/lib/X11/fonts",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "/.fonts"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "/.local/share/fonts"),
-            };
-
-        var fcp = Environment.GetEnvironmentVariable("FONTCONFIG_PATH");
-        if (fcp is not null && !fontLocations.Contains(fcp))
-            fontLocations.Add(fcp);
-
-        foreach (var fontLocation in fontLocations)
-        {
-            if (!Directory.Exists(fontLocation))
-                continue;
-
-            var fontPath = FindFileRecursive(fontLocation, faceName);
-            if (fontPath is not null && File.Exists(fontPath))
-                return File.ReadAllBytes(fontPath);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Finds filename candidates recursively on Linux, as organizing fonts into arbitrary subdirectories is allowed.
-    /// </summary>
-    string? FindFileRecursive(string basepath, string faceName)
-    {
-        var filenameCandidates = FaceNameToFilenameCandidates(faceName);
-
-        foreach (var file in Directory.GetFiles(basepath).Select(Path.GetFileName))
-            foreach (var filenameCandidate in filenameCandidates)
-            {
-                // Most programs treat fonts case-sensitive on Linux. We ignore case because we also target WSL.
-                if (!String.IsNullOrEmpty(file) && file.Equals(filenameCandidate, StringComparison.OrdinalIgnoreCase))
-                    return Path.Combine(basepath, filenameCandidate);
-            }
-
-        // Linux allows arbitrary subdirectories for organizing fonts.
-        foreach (var directory in Directory.GetDirectories(basepath).Select(Path.GetFileName))
-        {
-            if (String.IsNullOrEmpty(directory))
-                continue;
-
-            var file = FindFileRecursive(Path.Combine(basepath, directory), faceName);
-            if (file is not null)
-                return file;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Generates filename candidates for Linux systems.
-    /// </summary>
-    string[] FaceNameToFilenameCandidates(string faceName)
-    {
-        const string fileExtension = ".ttf";
-        // TODO OTF Fonts are popular on Linux too.
-
-        var candidates = new List<string>
-            {
-                faceName + fileExtension // We need to look for Windows face name too in case of WSL or copied files.
-            };
-
-        var family = Families.FirstOrDefault(f => f.FaceName == faceName);
-        if (family is null)
-            return candidates.ToArray();
-
-        if (!String.IsNullOrEmpty(family.LinuxFaceName))
-            candidates.Add(family.LinuxFaceName + fileExtension);
-        candidates.Add(family.FamilyName + fileExtension);
-
-        // Add substitute fonts as last candidates.
-        foreach (var replacement in family.LinuxSubstituteFamilyNames)
-        {
-            var replacementFamily = Families.FirstOrDefault(f => f.FamilyName == replacement);
-            if (replacementFamily is null)
-                continue;
-
-            candidates.Add(replacementFamily.FamilyName + fileExtension);
-            if (!String.IsNullOrEmpty(replacementFamily.FaceName))
-                candidates.Add(replacementFamily.FaceName + fileExtension);
-            if (!String.IsNullOrEmpty(replacementFamily.LinuxFaceName))
-                candidates.Add(replacementFamily.LinuxFaceName + fileExtension);
-        }
-
-        return candidates.ToArray();
-    }
-}
-#endregion
 #endregion
